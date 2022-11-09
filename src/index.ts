@@ -1,54 +1,54 @@
-import * as fs from "fs-extra"
-import * as glob from "glob"
-import { inspect, promisify } from "util"
-import { DOMParser } from "@xmldom/xmldom"
+import * as fs from "fs-extra";
+import * as glob from "glob";
+import { inspect, promisify } from "util";
+import { DOMParser } from "@xmldom/xmldom";
 
 // Provides dev-time type structures for  `danger` - doesn't affect runtime.
-import { DangerDSLType } from "../node_modules/danger/distribution/dsl/DangerDSL"
-declare var danger: DangerDSLType
-export declare function message(message: string): void
-export declare function warn(message: string): void
-export declare function fail(message: string): void
-export declare function markdown(message: string): void
+import { DangerDSLType } from "../node_modules/danger/distribution/dsl/DangerDSL";
+declare var danger: DangerDSLType;
+export declare function message(message: string): void;
+export declare function warn(message: string): void;
+export declare function fail(message: string): void;
+export declare function markdown(message: string): void;
 
 interface Attribute {
-  nodeName: string
+  nodeName: string;
 }
 
 interface Element {
-  attributes: Attribute[]
-  firstChild: Element
-  nodeValue: string
-  hasAttribute(name: string): boolean
-  getAttribute(name: string): string
-  getElementsByTagName(name: string): ElementList
-  hasChildNodes(): boolean
+  attributes: Attribute[];
+  firstChild: Element;
+  nodeValue: string;
+  hasAttribute(name: string): boolean;
+  getAttribute(name: string): string;
+  getElementsByTagName(name: string): ElementList;
+  hasChildNodes(): boolean;
 }
 
 interface ElementList {
-  readonly length: number
-  item(index: number): Element
-  [index: number]: Element
+  readonly length: number;
+  item(index: number): Element;
+  [index: number]: Element;
 }
 
 interface JUnitReportOptions {
   /**
    * The path to the generated junit files.
    */
-  pathToReport?: string
+  pathToReport?: string;
   /**
    * Whether the test summary message will be reported using danger's `message()`. Defaults to true.
    */
-  showMessageTestSummary?: boolean
+  showMessageTestSummary?: boolean;
   /**
    * Message to show at the top of the test results table. Defaults to "Tests"
    */
-  name?: string
+  name?: string;
 
   /**
    * If there are test failures, call warn not fail
    */
-  onlyWarn?: boolean
+  onlyWarn?: boolean;
 }
 
 /**
@@ -56,94 +56,98 @@ interface JUnitReportOptions {
  */
 export default async function junit(options: JUnitReportOptions) {
   const currentPath: string =
-    options.pathToReport !== undefined ? options.pathToReport! : "./build/reports/**/TESTS*.xml"
+    options.pathToReport !== undefined
+      ? options.pathToReport!
+      : "./build/reports/**/TESTS*.xml";
   const shouldShowMessageTestSummary: boolean =
-    options.showMessageTestSummary !== undefined ? options.showMessageTestSummary! : true
+    options.showMessageTestSummary !== undefined
+      ? options.showMessageTestSummary!
+      : true;
 
-  const name = options.name ? options.name : "Tests"
+  const name = options.name ? options.name : "Tests";
 
   // Use glob to find xml reports!
-  const matches: string[] = await promisify(glob)(currentPath)
+  const matches: string[] = await promisify(glob)(currentPath);
   if (matches.length === 0) {
-    warn(`:mag: Can't find junit reports at \`${currentPath}\`, skipping generating JUnit Report.`)
-    return
+    warn(
+      `:mag: Can't find junit reports at \`${currentPath}\`, skipping generating JUnit Report.`
+    );
+    return;
   }
 
   // Gather all the suites up
-  const allSuites = await Promise.all(matches.map(m => gatherSuites(m)))
-  const suites: globalThis.Element[] = allSuites.reduce((acc, val) => acc.concat(val), [])
+  const allSuites = await Promise.all(matches.map((m) => gatherSuites(m)));
+  const suites: globalThis.Element[] = allSuites.reduce(
+    (acc, val) => acc.concat(val),
+    []
+  );
 
   // Give a summary message
   if (shouldShowMessageTestSummary) {
-    reportSummary(suites)
+    reportSummary(suites);
   }
 
   // Give details on failed tests
-  const failuresAndErrors: globalThis.Element[] = gatherFailedTestcases(suites)
+  const failuresAndErrors: globalThis.Element[] = gatherFailedTestcases(suites);
   if (failuresAndErrors.length !== 0) {
-    reportFailures(failuresAndErrors, name, options.onlyWarn)
+    reportFailures(failuresAndErrors, name, options.onlyWarn);
   }
 }
 
 function gatherErrorDetail(failure: globalThis.Element): string {
-  let detail = "<pre>"
+  let detail = "<pre>";
   if (failure.hasAttribute("type") && failure.getAttribute("type") !== "") {
-    detail += `${failure.getAttribute("type")}: `
+    detail += `${failure.getAttribute("type")}: `;
   }
   if (failure.hasAttribute("message")) {
-    detail += failure.getAttribute("message")
+    detail += failure.getAttribute("message");
   }
-  if (failure.hasAttribute("stack")) {
-    detail += "\n" + failure.getAttribute("stack")
-  }
-  if (failure.hasChildNodes()) {
-    // CDATA stack trace
-    detail +=
-      "\n" +
-      failure.firstChild!.nodeValue!
-        .trim()
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-  }
-  detail += "</pre>"
-  return detail
+  detail += "</pre>";
+  return detail;
 }
 
-function reportFailures(failuresAndErrors: globalThis.Element[], name: string, onlyWarn?: boolean): void {
-
-  onlyWarn ? warn(`${name} have failed, see below for more information.`) :  fail(`${name} have failed, see below for more information.`)
-  let testResultsTable: string = `### ${name}:\n\n<table>`
-  const keys: string[] = Array.from(failuresAndErrors[0].attributes).map((attr: Attribute) => attr.nodeName)
-  const attributes: string[] = keys.map(key => {
-    return key.substr(0, 1).toUpperCase() + key.substr(1).toLowerCase()
-  })
+function reportFailures(
+  failuresAndErrors: globalThis.Element[],
+  name: string,
+  onlyWarn?: boolean
+): void {
+  onlyWarn
+    ? warn(`${name} have failed, see below for more information.`)
+    : fail(`${name} have failed, see below for more information.`);
+  let testResultsTable: string = `### ${name}:\n\n<table>`;
+  const keys: string[] = Array.from(failuresAndErrors[0].attributes).map(
+    (attr: Attribute) => attr.nodeName
+  );
+  const attributes: string[] = keys.map((key) => {
+    return key.substr(0, 1).toUpperCase() + key.substr(1).toLowerCase();
+  });
   // TODO: Force order? Classname, name, time
-  attributes.push("Error")
+  attributes.push("Error");
 
   // TODO Include stderr/stdout too?
   // Create the headers
-  testResultsTable += `<tr><th>${attributes.join("</th><th>")}</th></tr>\n`
+  testResultsTable += `<tr><th>${attributes.join("</th><th>")}</th></tr>\n`;
 
   // Map out the keys to the tests
-  failuresAndErrors.forEach(test => {
-    const rowValues = keys.map(key => test.getAttribute(key))
+  failuresAndErrors.forEach((test) => {
+    const rowValues = keys.map((key) => test.getAttribute(key));
     // push error/failure message too
-    const errors = test.getElementsByTagName("error")
+    const errors = test.getElementsByTagName("error");
     if (errors.length !== 0) {
-      rowValues.push(gatherErrorDetail(errors.item(0)!))
+      rowValues.push(gatherErrorDetail(errors.item(0)!));
     } else {
-      const failures = test.getElementsByTagName("failure")
+      const failures = test.getElementsByTagName("failure");
       if (failures.length !== 0) {
-        rowValues.push(gatherErrorDetail(failures.item(0)!))
+        rowValues.push(gatherErrorDetail(failures.item(0)!));
       } else {
-        rowValues.push("") // This shouldn't ever happen
+        rowValues.push(""); // This shouldn't ever happen
       }
     }
-    testResultsTable += `<tr><td>${rowValues.join("</td><td>")}</td></tr>\n`
-  })
-  testResultsTable += `</table>\n`
+    testResultsTable += `<tr><td>${rowValues.join("</td><td>")}</td></tr>\n`;
+  });
+  testResultsTable += `</table>\n`;
 
-  markdown(testResultsTable)
+  markdown(testResultsTable);
 }
 
 function reportSummary(suites: globalThis.Element[]): void {
@@ -151,66 +155,91 @@ function reportSummary(suites: globalThis.Element[]): void {
     count: 0,
     failures: 0,
     skipped: 0,
-  }
+  };
   // for each test suite, look at:
   // tests="19" failures="1" skipped="3" timestamp="" time="6.487">
   // FIXME: Sometimes these numbers look "suspect" and may be reporting incorrect numbers versus the actual contents...
-  suites.forEach(s => {
-    results.count += s.hasAttribute("tests") ? parseInt(s.getAttribute("tests")!, 10) : 0
-    results.failures += s.hasAttribute("failures") ? parseInt(s.getAttribute("failures")!, 10) : 0
-    results.failures += s.hasAttribute("errors") ? parseInt(s.getAttribute("errors")!, 10) : 0
-    results.skipped += s.hasAttribute("skipped") ? parseInt(s.getAttribute("skipped")!, 10) : gatherSkipped(s)
-  })
+  suites.forEach((s) => {
+    results.count += s.hasAttribute("tests")
+      ? parseInt(s.getAttribute("tests")!, 10)
+      : 0;
+    results.failures += s.hasAttribute("failures")
+      ? parseInt(s.getAttribute("failures")!, 10)
+      : 0;
+    results.failures += s.hasAttribute("errors")
+      ? parseInt(s.getAttribute("errors")!, 10)
+      : 0;
+    results.skipped += s.hasAttribute("skipped")
+      ? parseInt(s.getAttribute("skipped")!, 10)
+      : gatherSkipped(s);
+  });
 
   if (results.failures !== 0) {
     message(`:x: ${results.failures} tests have failed
-There are ${results.failures} tests failing and ${results.skipped} skipped out of ${results.count} total tests.`)
+There are ${results.failures} tests failing and ${results.skipped} skipped out of ${results.count} total tests.`);
   } else {
     let msg = `:white_check_mark: All tests are passing
-Nice one! All ${results.count - results.skipped} tests are passing.`
+Nice one! All ${results.count - results.skipped} tests are passing.`;
     if (results.skipped !== 0) {
-      msg += `\n(There are ${results.skipped} skipped tests not included in that total)`
+      msg += `\n(There are ${results.skipped} skipped tests not included in that total)`;
     }
-    message(msg)
+    message(msg);
   }
 }
 
 async function gatherSuites(reportPath: string): Promise<globalThis.Element[]> {
-  const exists = await fs.pathExists(reportPath)
+  const exists = await fs.pathExists(reportPath);
   if (!exists) {
-    return []
+    return [];
   }
-  const contents = await fs.readFile(reportPath, "utf8")
-  const doc = new DOMParser().parseFromString(contents, "text/xml")
+  const contents = await fs.readFile(reportPath, "utf8");
+  const doc = new DOMParser().parseFromString(contents, "text/xml");
   const suiteRoot =
-    doc.documentElement.firstChild?.nodeName === "testsuites" ? doc.documentElement.firstElementChild : doc.documentElement
-  return suiteRoot?.nodeName === "testsuite" ? [suiteRoot] : Array.from(suiteRoot?.getElementsByTagName("testsuite") || [])
+    doc.documentElement.firstChild?.nodeName === "testsuites"
+      ? doc.documentElement.firstElementChild
+      : doc.documentElement;
+  return suiteRoot?.nodeName === "testsuite"
+    ? [suiteRoot]
+    : Array.from(suiteRoot?.getElementsByTagName("testsuite") || []);
 }
 
 // Report test failures
-function gatherFailedTestcases(suites: globalThis.Element[]): globalThis.Element[] {
+function gatherFailedTestcases(
+  suites: globalThis.Element[]
+): globalThis.Element[] {
   // We need to get the 'testcase' elements that have an 'error' or 'failure' child node
-  const failedSuites = suites.filter(suite => {
-    const hasFailures = suite.hasAttribute("failures") && parseInt(suite.getAttribute("failures")!, 10) !== 0
-    const hasErrors = suite.hasAttribute("errors") && parseInt(suite.getAttribute("errors")!, 10) !== 0
-    return hasFailures || hasErrors
-  })
+  const failedSuites = suites.filter((suite) => {
+    const hasFailures =
+      suite.hasAttribute("failures") &&
+      parseInt(suite.getAttribute("failures")!, 10) !== 0;
+    const hasErrors =
+      suite.hasAttribute("errors") &&
+      parseInt(suite.getAttribute("errors")!, 10) !== 0;
+    return hasFailures || hasErrors;
+  });
   // Gather all the testcase nodes from each failed suite properly.
-  let failedSuitesAllTests: globalThis.Element[] = []
-  failedSuites.forEach(suite => {
-    failedSuitesAllTests = failedSuitesAllTests.concat(Array.from(suite.getElementsByTagName("testcase")))
-  })
-  return failedSuitesAllTests.filter(test => {
+  let failedSuitesAllTests: globalThis.Element[] = [];
+  failedSuites.forEach((suite) => {
+    failedSuitesAllTests = failedSuitesAllTests.concat(
+      Array.from(suite.getElementsByTagName("testcase"))
+    );
+  });
+  return failedSuitesAllTests.filter((test) => {
     return (
       test.hasChildNodes() &&
-      (test.getElementsByTagName("failure").length > 0 || test.getElementsByTagName("error").length > 0)
-    )
-  })
+      (test.getElementsByTagName("failure").length > 0 ||
+        test.getElementsByTagName("error").length > 0)
+    );
+  });
 }
 
 function gatherSkipped(suite: globalThis.Element): number {
-  const testcases: globalThis.Element[] = Array.from(suite.getElementsByTagName("testcase"))
-  return testcases.filter(test => {
-    return test.hasChildNodes() && test.getElementsByTagName("skipped").length > 0
-  }).length
+  const testcases: globalThis.Element[] = Array.from(
+    suite.getElementsByTagName("testcase")
+  );
+  return testcases.filter((test) => {
+    return (
+      test.hasChildNodes() && test.getElementsByTagName("skipped").length > 0
+    );
+  }).length;
 }

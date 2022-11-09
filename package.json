@@ -1,24 +1,24 @@
 {
-  "name": "@seadub/danger-plugin-junit",
+  "name": "@gianfrancoms/danger-plugin-junit",
   "description": "Add your Junit XML test failures to Danger",
   "author": {
-    "name": "Christopher Williams",
-    "email": "chris.a.williams@gmail.com"
+    "name": "Gianfranco Monzon",
+    "email": "gianfrancomonsal@gmail.com"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/sgtcoolguy/danger-plugin-junit.git"
+    "url": "https://github.com/GianfrancoMS/danger-plugin-junit"
   },
   "bugs": {
-    "url": "https://github.com/sgtcoolguy/danger-plugin-junit/issues"
+    "url": "https://github.com/GianfrancoMS/danger-plugin-junit/issues"
   },
-  "homepage": "https://github.com/sgtcoolguy/danger-plugin-junit#readme",
+  "homepage": "https://github.com/GianfrancoMS/danger-plugin-junit#readme",
   "keywords": [
     "danger",
     "danger-plugin",
     "junit"
   ],
-  "version": "0.3.0",
+  "version": "0.4.0",
   "main": "dist/index.js",
   "types": "types/index.d.ts",
   "scripts": {
