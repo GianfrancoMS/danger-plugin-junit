@@ -88,7 +88,7 @@ function reportFailures(
     : fail(`${name} have failed, see below for more information.`);
   let testResultsTable: string = `### ${name}: \n\n"`;
 
-  testResultsTable += `| File | Name | Message | Type|\n`;
+  testResultsTable += `| File | Name | Message | Type |\n`;
 
   failuresAndErrors.forEach((test) => {
     const file = test.getAttribute("classname");
@@ -101,7 +101,7 @@ function reportFailures(
       message = failure.getAttribute("message") ?? " - ";
       type = failure.getAttribute("type") ?? " - ";
     }
-    testResultsTable += `| ${file} | ${name} | ${message} | ${type}|\n`;
+    testResultsTable += `| ${file} | ${name} | ${message} | ${type} |\n`;
   });
   markdown(testResultsTable);
 }
