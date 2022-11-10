@@ -87,24 +87,21 @@ function reportFailures(
     ? warn(`${name} have failed, see below for more information.`)
     : fail(`${name} have failed, see below for more information.`);
 
-  let testResultsTable: string = `### ${name}: \n\n`;
-  testResultsTable += `| File | Name | Message | Type |\n`;
-  testResultsTable += `| ---- | ---- | ------- | ---- |\n`;
+  let testResultsTable = `| File | Name | Message |\n`;
+  testResultsTable += `| ---- | ---- | ------- |\n`;
 
   failuresAndErrors.forEach((test) => {
     const file = test.getAttribute("classname");
     const name = test.getAttribute("name");
     const failures = test.getElementsByTagName("failure");
     let message = " - ";
-    let type = " - ";
     if (failures.length !== 0) {
       const failure = failures[0];
       message = failure.getAttribute("message") ?? " - ";
       // Replace break lines with empty space
-      message = message.replace(/[\r\n]/gm, " ");
-      type = failure.getAttribute("type") ?? " - ";
+      message = message.split("\n").join(" ");
     }
-    testResultsTable += `| ${file} | ${name} | ${message} | ${type} |\n`;
+    testResultsTable += `| ${file} | ${name} | ${message} |\n`;
   });
   markdown(testResultsTable);
 }
