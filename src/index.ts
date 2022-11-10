@@ -37,10 +37,6 @@ interface JUnitReportOptions {
    */
   pathToReport?: string;
   /**
-   * Whether the test summary message will be reported using danger's `message()`. Defaults to true.
-   */
-  showMessageTestSummary?: boolean;
-  /**
    * Message to show at the top of the test results table. Defaults to "Tests"
    */
   name?: string;
@@ -59,19 +55,12 @@ export default async function junit(options: JUnitReportOptions) {
     options.pathToReport !== undefined
       ? options.pathToReport!
       : "./build/reports/**/TESTS*.xml";
-  const shouldShowMessageTestSummary: boolean =
-    options.showMessageTestSummary !== undefined
-      ? options.showMessageTestSummary!
-      : true;
 
   const name = options.name ? options.name : "Tests";
 
   // Use glob to find xml reports!
   const matches: string[] = await promisify(glob)(currentPath);
   if (matches.length === 0) {
-    warn(
-      `:mag: Can't find junit reports at \`${currentPath}\`, skipping generating JUnit Report.`
-    );
     return;
   }
 
@@ -82,28 +71,11 @@ export default async function junit(options: JUnitReportOptions) {
     []
   );
 
-  // Give a summary message
-  if (shouldShowMessageTestSummary) {
-    reportSummary(suites);
-  }
-
   // Give details on failed tests
   const failuresAndErrors: globalThis.Element[] = gatherFailedTestcases(suites);
   if (failuresAndErrors.length !== 0) {
     reportFailures(failuresAndErrors, name, options.onlyWarn);
   }
-}
-
-function gatherErrorDetail(failure: globalThis.Element): string {
-  let detail = "<pre>";
-  if (failure.hasAttribute("type") && failure.getAttribute("type") !== "") {
-    detail += `${failure.getAttribute("type")}: `;
-  }
-  if (failure.hasAttribute("message")) {
-    detail += failure.getAttribute("message");
-  }
-  detail += "</pre>";
-  return detail;
 }
 
 function reportFailures(
@@ -114,77 +86,24 @@ function reportFailures(
   onlyWarn
     ? warn(`${name} have failed, see below for more information.`)
     : fail(`${name} have failed, see below for more information.`);
-  let testResultsTable: string = `### ${name}:\n\n<table>`;
-  const keys: string[] = Array.from(failuresAndErrors[0].attributes).map(
-    (attr: Attribute) => attr.nodeName
-  );
-  const attributes: string[] = keys.map((key) => {
-    return key.substr(0, 1).toUpperCase() + key.substr(1).toLowerCase();
-  });
-  // TODO: Force order? Classname, name, time
-  attributes.push("Error");
+  let testResultsTable: string = `### ${name}: \n\n"`;
 
-  // TODO Include stderr/stdout too?
-  // Create the headers
-  testResultsTable += `<tr><th>${attributes.join("</th><th>")}</th></tr>\n`;
+  testResultsTable += `| File | Name | Message | Type|\n`;
 
-  // Map out the keys to the tests
   failuresAndErrors.forEach((test) => {
-    const rowValues = keys.map((key) => test.getAttribute(key));
-    // push error/failure message too
-    const errors = test.getElementsByTagName("error");
-    if (errors.length !== 0) {
-      rowValues.push(gatherErrorDetail(errors.item(0)!));
-    } else {
-      const failures = test.getElementsByTagName("failure");
-      if (failures.length !== 0) {
-        rowValues.push(gatherErrorDetail(failures.item(0)!));
-      } else {
-        rowValues.push(""); // This shouldn't ever happen
-      }
+    const file = test.getAttribute("classname");
+    const name = test.getAttribute("name");
+    const failures = test.getElementsByTagName("failure");
+    let message = " - ";
+    let type = " - ";
+    if (failures.length !== 0) {
+      const failure = failures[0];
+      message = failure.getAttribute("message") ?? " - ";
+      type = failure.getAttribute("type") ?? " - ";
     }
-    testResultsTable += `<tr><td>${rowValues.join("</td><td>")}</td></tr>\n`;
+    testResultsTable += `| ${file} | ${name} | ${message} | ${type}|\n`;
   });
-  testResultsTable += `</table>\n`;
-
   markdown(testResultsTable);
-}
-
-function reportSummary(suites: globalThis.Element[]): void {
-  const results = {
-    count: 0,
-    failures: 0,
-    skipped: 0,
-  };
-  // for each test suite, look at:
-  // tests="19" failures="1" skipped="3" timestamp="" time="6.487">
-  // FIXME: Sometimes these numbers look "suspect" and may be reporting incorrect numbers versus the actual contents...
-  suites.forEach((s) => {
-    results.count += s.hasAttribute("tests")
-      ? parseInt(s.getAttribute("tests")!, 10)
-      : 0;
-    results.failures += s.hasAttribute("failures")
-      ? parseInt(s.getAttribute("failures")!, 10)
-      : 0;
-    results.failures += s.hasAttribute("errors")
-      ? parseInt(s.getAttribute("errors")!, 10)
-      : 0;
-    results.skipped += s.hasAttribute("skipped")
-      ? parseInt(s.getAttribute("skipped")!, 10)
-      : gatherSkipped(s);
-  });
-
-  if (results.failures !== 0) {
-    message(`:x: ${results.failures} tests have failed
-There are ${results.failures} tests failing and ${results.skipped} skipped out of ${results.count} total tests.`);
-  } else {
-    let msg = `:white_check_mark: All tests are passing
-Nice one! All ${results.count - results.skipped} tests are passing.`;
-    if (results.skipped !== 0) {
-      msg += `\n(There are ${results.skipped} skipped tests not included in that total)`;
-    }
-    message(msg);
-  }
 }
 
 async function gatherSuites(reportPath: string): Promise<globalThis.Element[]> {
@@ -231,15 +150,4 @@ function gatherFailedTestcases(
         test.getElementsByTagName("error").length > 0)
     );
   });
-}
-
-function gatherSkipped(suite: globalThis.Element): number {
-  const testcases: globalThis.Element[] = Array.from(
-    suite.getElementsByTagName("testcase")
-  );
-  return testcases.filter((test) => {
-    return (
-      test.hasChildNodes() && test.getElementsByTagName("skipped").length > 0
-    );
-  }).length;
 }
