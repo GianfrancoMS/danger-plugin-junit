@@ -86,9 +86,10 @@ function reportFailures(
   onlyWarn
     ? warn(`${name} have failed, see below for more information.`)
     : fail(`${name} have failed, see below for more information.`);
-  let testResultsTable: string = `### ${name}: \n\n"`;
 
+  let testResultsTable: string = `### ${name}: \n\n`;
   testResultsTable += `| File | Name | Message | Type |\n`;
+  testResultsTable += `| ---- | ---- | ------- | ---- |\n`;
 
   failuresAndErrors.forEach((test) => {
     const file = test.getAttribute("classname");
@@ -99,6 +100,8 @@ function reportFailures(
     if (failures.length !== 0) {
       const failure = failures[0];
       message = failure.getAttribute("message") ?? " - ";
+      // Replace break lines with empty space
+      message = message.replace(/[\r\n]/gm, " ");
       type = failure.getAttribute("type") ?? " - ";
     }
     testResultsTable += `| ${file} | ${name} | ${message} | ${type} |\n`;
